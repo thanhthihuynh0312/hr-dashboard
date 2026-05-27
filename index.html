@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HR Recruitment Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --bg:#0f1117;--bg2:#161b27;--bg3:#1e2535;--card:#1a2032;
+    --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+    --text:#e8edf5;--text2:#8a95a8;--text3:#505a6b;
+    --accent:#4f8ef7;--accent2:#7c5cfc;
+    --green:#34c78a;--amber:#f5a623;--red:#f05a5a;--teal:#28c5d0;
+    --font:'DM Sans',sans-serif;--mono:'DM Mono',monospace;
+    --radius:12px;--radius-sm:8px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6;}
+
+  #uploadScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:24px;padding:2rem;background:radial-gradient(ellipse 60% 50% at 50% 40%,rgba(79,142,247,0.10) 0%,transparent 70%);}
+  .upload-title{text-align:center;}
+  .upload-title h1{font-size:30px;font-weight:600;letter-spacing:-0.5px;background:linear-gradient(135deg,#e8edf5 30%,#4f8ef7 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px;}
+  .upload-title p{color:var(--text2);font-size:14px;}
+
+  .drop-zone{width:460px;max-width:100%;border:1.5px dashed var(--border2);border-radius:var(--radius);padding:44px 32px;text-align:center;cursor:pointer;transition:border-color 0.2s,background 0.2s;background:var(--card);position:relative;}
+  .drop-zone:hover,.drop-zone.drag{border-color:var(--accent);background:rgba(79,142,247,0.06);}
+  .drop-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+  .drop-icon{width:48px;height:48px;background:rgba(79,142,247,0.15);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-size:20px;}
+  .drop-zone h3{font-size:14px;font-weight:500;margin-bottom:6px;}
+  .drop-zone p{font-size:12px;color:var(--text2);}
+  .drop-zone .ext{margin-top:10px;font-size:11px;color:var(--text3);font-family:var(--mono);}
+
+  .map-hint{width:460px;max-width:100%;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 22px;}
+  .map-hint h3{font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;}
+  .map-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 16px;}
+  .map-row2{display:flex;align-items:center;gap:6px;font-size:11px;}
+  .map-dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;}
+  .map-dot.miss{background:var(--text3);}
+  .map-field{color:var(--text2);}
+  .map-col{color:var(--text);font-family:var(--mono);font-size:10px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+  .btn-load{display:block;width:460px;max-width:100%;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);padding:12px;font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font);transition:opacity 0.2s;}
+  .btn-load:hover{opacity:0.85;}
+
+  #dashboard{display:none;}
+  .topbar{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 22px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+  .topbar-left{display:flex;align-items:center;gap:10px;}
+  .topbar-logo{font-size:14px;font-weight:600;color:var(--text);}
+  .topbar-logo span{color:var(--accent);}
+  .topbar-sep{width:1px;height:16px;background:var(--border2);}
+  .topbar-sub{font-size:11px;color:var(--text2);}
+  .topbar-right{display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+  .filter-select{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);padding:4px 9px;font-size:11px;font-family:var(--font);cursor:pointer;}
+  .filter-select:focus{outline:none;border-color:var(--accent);}
+  .btn-reset{background:transparent;border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text2);padding:4px 10px;font-size:11px;cursor:pointer;font-family:var(--font);}
+  .btn-reset:hover{border-color:var(--accent);color:var(--accent);}
+  .btn-back{background:transparent;border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text2);padding:4px 10px;font-size:11px;cursor:pointer;font-family:var(--font);}
+  .btn-back:hover{border-color:var(--red);color:var(--red);}
+
+  .main{padding:18px 22px;max-width:1400px;margin:0 auto;}
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:10px;margin-bottom:14px;}
+  .kpi-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:13px 15px;position:relative;overflow:hidden;}
+  .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent-color,var(--accent));}
+  .kpi-label{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:0.4px;margin-bottom:5px;}
+  .kpi-val{font-size:22px;font-weight:600;color:var(--text);font-family:var(--mono);letter-spacing:-1px;}
+  .kpi-sub{font-size:10px;color:var(--text3);margin-top:2px;}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:11px;}
+  .grid-2-1{display:grid;grid-template-columns:2fr 1fr;gap:11px;margin-bottom:11px;}
+
+  .chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:15px 17px;}
+  .chart-title{font-size:10px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:11px;}
+  .chart-wrap{position:relative;width:100%;}
+
+  .funnel{display:flex;flex-direction:column;gap:7px;}
+  .funnel-row{display:flex;align-items:center;gap:9px;}
+  .funnel-lbl{font-size:11px;color:var(--text2);width:76px;text-align:right;flex-shrink:0;}
+  .funnel-track{flex:1;background:var(--bg3);border-radius:4px;height:21px;overflow:hidden;}
+  .funnel-fill{height:100%;border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding-right:7px;}
+  .funnel-fill span{font-size:10px;font-weight:500;color:rgba(255,255,255,0.85);font-family:var(--mono);}
+
+  .sla-table,.src-table{width:100%;border-collapse:collapse;font-size:11px;}
+  .sla-table th,.src-table th{color:var(--text3);font-weight:400;text-align:left;padding:4px 7px;border-bottom:1px solid var(--border);font-size:10px;text-transform:uppercase;letter-spacing:0.4px;}
+  .sla-table td,.src-table td{padding:6px 7px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:middle;}
+  .sla-table tr:last-child td,.src-table tr:last-child td{border-bottom:none;}
+  .sla-table tr:hover td,.src-table tr:hover td{background:rgba(255,255,255,0.02);}
+
+  .sla-bar-wrap{display:flex;align-items:center;gap:7px;}
+  .sla-bar-bg{flex:1;background:var(--bg3);border-radius:3px;height:5px;overflow:hidden;min-width:50px;}
+  .sla-bar-fill{height:100%;border-radius:3px;}
+  .sla-days{font-family:var(--mono);font-size:11px;min-width:26px;}
+
+  .pill{display:inline-block;border-radius:20px;font-size:10px;padding:2px 7px;font-weight:500;}
+  .pill-green{background:rgba(52,199,138,0.15);color:var(--green);}
+  .pill-amber{background:rgba(245,166,35,0.15);color:var(--amber);}
+  .pill-red{background:rgba(240,90,90,0.15);color:var(--red);}
+
+  .loc-grid{display:flex;flex-wrap:wrap;gap:6px;}
+  .loc-item{border-radius:var(--radius-sm);padding:5px 9px;font-size:11px;display:flex;align-items:center;gap:5px;}
+  .loc-count{font-family:var(--mono);font-weight:500;font-size:11px;color:var(--accent);}
+
+  .empty{text-align:center;padding:24px;color:var(--text3);font-size:12px;}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:9px 18px;border-radius:var(--radius-sm);font-size:13px;z-index:999;display:none;}
+
+  .sla-tab{background:transparent;border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text2);padding:3px 9px;font-size:10px;cursor:pointer;font-family:var(--font);transition:all 0.15s;}
+  .sla-tab:hover{border-color:var(--accent);color:var(--accent);}
+  .sla-tab.active{background:var(--accent);border-color:var(--accent);color:#fff;}
+
+  @media(max-width:900px){.grid-2,.grid-2-1{grid-template-columns:1fr;}.topbar{flex-wrap:wrap;height:auto;padding:10px 16px;}}
+</style>
+</head>
+<body>
+
+<div id="uploadScreen">
+  <div class="upload-title">
+    <h1>HR Recruitment Dashboard</h1>
+    <p>HR Recruitment · FPT Software</p>
+  </div>
+
+  <div id="spConnectStatus" style="font-size:13px;color:var(--text2);text-align:center;max-width:460px;line-height:1.6;min-height:20px"></div>
+
+  <!-- Manual upload — always visible as primary option -->
+  <div class="drop-zone" id="dropZone">
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" />
+    <div class="drop-icon">📂</div>
+    <h3>Upload file Excel</h3>
+    <p>Kéo thả hoặc click để chọn file</p>
+    <div class="ext">2026 - Recruitment Database.xlsx</div>
+  </div>
+
+  <div class="map-hint" id="mapHint" style="display:none">
+    <h3>Auto-detected columns</h3>
+    <div class="map-grid" id="mapGrid"></div>
+  </div>
+
+  <button class="btn-load" id="btnLoad" style="display:none">Build Dashboard →</button>
+  <div id="loadingState" style="font-size:11px;color:var(--text3);text-align:center;margin-top:4px"></div>
+</div>
+
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">HR <span>Dashboard</span></div>
+      <div class="topbar-sep"></div>
+      <div class="topbar-sub" id="dataInfo">—</div>
+    </div>
+    <div class="topbar-right">
+      <select class="filter-select" id="fDept"><option value="">All Departments</option></select>
+      <select class="filter-select" id="fLevel"><option value="">All Levels</option></select>
+      <select class="filter-select" id="fSource"><option value="">All Sources</option></select>
+      <select class="filter-select" id="fStatus"><option value="">All Statuses</option></select>
+      <button class="btn-reset" id="btnReset">Reset</button>
+      <button class="btn-back" id="btnBack">← Upload New File</button>
+      <div id="refreshBadge" style="font-size:10px;color:var(--text3);font-family:var(--mono);white-space:nowrap"></div>
+      <button onclick="manualRefresh()" style="background:transparent;border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text2);padding:4px 9px;font-size:11px;cursor:pointer;font-family:var(--font);" title="Refresh data now">↻</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <!-- Row 1: Two trend charts side by side -->
+    <div class="grid-2">
+      <div class="chart-card">
+        <div class="chart-title">Total Recruitment Request by Month</div>
+        <div class="chart-wrap" style="height:185px"><canvas id="trendReqChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Total Offer Acceptance by Month</div>
+        <div class="chart-wrap" style="height:185px"><canvas id="trendOfferChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Row 2: Hiring Plan Completion Rate (moved up) -->
+    <div class="chart-card" style="margin-bottom:11px">
+      <div class="chart-title">Hiring Plan Completion Rate</div>
+      <div id="headcountSummary" style="margin-bottom:10px"></div>
+      <div class="chart-wrap" style="height:260px"><canvas id="headcountChart"></canvas></div>
+      <div id="headcountPending" style="margin-top:8px"></div>
+    </div>
+
+    <!-- Row 3: Requisition status table -->
+    <div class="chart-card" style="margin-bottom:11px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+        <div class="chart-title" style="margin-bottom:0">Requisition Status 2026</div>
+        <div style="display:flex;gap:6px">
+          <button class="sla-tab active" onclick="setReqFilter(this,'all')">All</button>
+          <button class="sla-tab" onclick="setReqFilter(this,'Closed')">🟢 Closed</button>
+          <button class="sla-tab" onclick="setReqFilter(this,'Processing')">🔵 Processing</button>
+          <button class="sla-tab" onclick="setReqFilter(this,'Pending')">🟡 Pending</button>
+        </div>
+      </div>
+      <table class="src-table" id="reqTable">
+        <thead>
+          <tr>
+            <th>Position</th>
+            <th>Req Month</th>
+            <th>Department</th>
+            <th>Level</th>
+            <th>Headcount</th>
+            <th>Accepted</th>
+            <th>Total Apps</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="reqTableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Row 4: SLA tables -->
+    <div class="grid-2">
+      <div class="chart-card">
+        <div class="chart-title">SLA Detail — Management (Accepted Only)</div>
+        <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:10px;color:var(--text3);margin-right:4px">Step:</span>
+          <button class="sla-tab active" data-step="total" onclick="setSLAStep(this,'total')">Total (Req → Offer)</button>
+          <button class="sla-tab" data-step="req2apply" onclick="setSLAStep(this,'req2apply')">Req → Apply</button>
+          <button class="sla-tab" data-step="apply2interview" onclick="setSLAStep(this,'apply2interview')">Apply → Interview</button>
+          <button class="sla-tab" data-step="interview2offer" onclick="setSLAStep(this,'interview2offer')">Interview → Offer</button>
+        </div>
+        <table class="sla-table" id="slaTableMgmt">
+          <thead><tr><th>Position</th><th>Level</th><th>Department</th><th>Candidate (Accepted)</th><th>SLA (days)</th><th>Rating</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">SLA Detail — Staff (Accepted Only)</div>
+        <div style="margin-bottom:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:10px;color:var(--text3);margin-right:4px">Step:</span>
+          <button class="sla-tab active" data-step="total" onclick="setSLAStepStaff(this,'total')">Total (Req → Offer)</button>
+          <button class="sla-tab" data-step="req2apply" onclick="setSLAStepStaff(this,'req2apply')">Req → Apply</button>
+          <button class="sla-tab" data-step="apply2interview" onclick="setSLAStepStaff(this,'apply2interview')">Apply → Interview</button>
+          <button class="sla-tab" data-step="interview2offer" onclick="setSLAStepStaff(this,'interview2offer')">Interview → Offer</button>
+        </div>
+        <table class="sla-table" id="slaTableStaff">
+          <thead><tr><th>Position</th><th>Level</th><th>Department</th><th>Candidate (Accepted)</th><th>SLA (days)</th><th>Rating</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Row 5: Source Effectiveness (moved below SLA) -->
+    <div class="chart-card" style="margin-bottom:11px">
+      <div class="chart-title">Source Effectiveness</div>
+      <table class="src-table" id="srcTable">
+        <thead><tr><th>Source</th><th>Total Apps</th><th>Offers</th><th>Accepted</th><th>% of Total Accepts</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════
+// ⚙️  SHAREPOINT CONFIG
+// ══════════════════════════════════════════════════════════════════
+// Direct download URL của file Excel trên SharePoint
+// (người xem phải đang đăng nhập M365 trên browser này)
+const EXCEL_URL = 'https://fptsoftware362-my.sharepoint.com/personal/thanhhtt_fpt_com/Documents/0.%20FHR/1.%20TUYEN%20DUNG/2026/Dashboard/Recruitment/2026-Recruitment%20Database.xlsx?web=0';
+const REFRESH_INTERVAL_MS = 30 * 60 * 1000; // 30 phút
+// ══════════════════════════════════════════════════════════════════
+
+let refreshTimer    = null;
+let nextRefreshAt   = null;
+let refreshCountdown= null;
+let isAutoMode      = false;
+
+// Auto-load khi mở trang
+window.addEventListener('DOMContentLoaded', () => {
+  loadExcel(false);
+});
+
+async function loadExcel(isRefresh){
+  const statusEl  = document.getElementById('spConnectStatus');
+  const loadingEl = document.getElementById('loadingState');
+  const setStatus = (msg, color='var(--text2)') => {
+    if(statusEl) { statusEl.textContent = msg; statusEl.style.color = color; }
+    if(loadingEl){ loadingEl.textContent = msg; }
+  };
+
+  if(!isRefresh) setStatus('⏳ Đang tải dữ liệu từ SharePoint...', 'var(--text2)');
+
+  try{
+    // Dùng credentials:'include' để gửi cookie M365 đã đăng nhập
+    const res = await fetch(EXCEL_URL, { credentials:'include', cache:'no-store' });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+
+    const buf  = await res.arrayBuffer();
+    const wb   = XLSX.read(buf, { type:'array', cellDates:true });
+    const ws   = wb.Sheets[wb.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(ws, { defval:'' });
+    if(!json.length) throw new Error('File không có dữ liệu');
+
+    rawData = json;
+    autoMap(Object.keys(json[0]));
+    isAutoMode = true;
+
+    if(isRefresh){
+      renderAll();
+      showToast('✓ Đã cập nhật lúc ' + new Date().toLocaleTimeString());
+    } else {
+      setStatus('✓ Kết nối thành công! Đang tạo dashboard...', 'var(--green)');
+      setTimeout(() => buildDashboard(), 200);
+    }
+    scheduleRefresh();
+
+  }catch(err){
+    const hint = err.message.includes('403') || err.message.includes('401')
+      ? 'SharePoint: cần đăng nhập M365 trước khi mở dashboard từ SharePoint URL'
+      : 'Auto-load không khả dụng — vui lòng upload file thủ công bên dưới';
+
+    if(isRefresh){
+      showToast('⚠ Refresh thất bại: ' + err.message);
+      scheduleRefresh();
+    } else {
+      setStatus(hint, 'var(--text3)');
+    }
+  }
+}
+
+function scheduleRefresh(){
+  clearTimeout(refreshTimer);
+  clearInterval(refreshCountdown);
+  nextRefreshAt    = Date.now() + REFRESH_INTERVAL_MS;
+  refreshTimer     = setTimeout(() => { if(isAutoMode) loadExcel(true); }, REFRESH_INTERVAL_MS);
+  refreshCountdown = setInterval(updateRefreshBadge, 10000);
+  updateRefreshBadge();
+}
+
+function updateRefreshBadge(){
+  const badge = document.getElementById('refreshBadge');
+  if(!badge||!nextRefreshAt) return;
+  const rem  = Math.max(0, nextRefreshAt - Date.now());
+  const mins = Math.floor(rem/60000);
+  const secs = Math.floor((rem%60000)/1000);
+  badge.textContent = '↻ ' + mins + 'm ' + secs + 's';
+}
+
+function manualRefresh(){ if(isAutoMode) loadExcel(true); }
+function connectSharePoint(){ loadExcel(false); }
+function showManualUpload(){ /* dropzone always visible */ }
+
+
+const FIELD_PATTERNS = {
+  status:        ['status'],
+  source:        ['recruitment source','nguồn ứng tuyển','source','channel'],
+  dept2:         ['department (level 2)','bộ phận cấp 2'],
+  dept3:         ['department (level 3)','bộ phận cấp 3'],
+  dept1:         ['division (level 1)','bộ phận cấp 1'],
+  dept:          ['phòng ban','department','dept','division'],
+  level:         ['level','cấp độ','seniority'],
+  candidateName: ['candidate full name','họ và tên thông tin ứng tuyển','họ và tên','candidate name'],
+  applyDate:     ['application created date','ngày tạo thông tin ứng tuyển','ngày ứng tuyển'],
+  reqDate:       ['recruitment request created date','ngày tạo yêu cầu tuyển dụng','ngày tạo yêu cầu'],
+  pauseDate:     ['recruitment request on-hold date','ngày tạm dừng'],
+  interviewDate: ['interview time 1','thời gian phỏng vấn 1','interview date'],
+  offerDate:     ['offer acceptance date','ngày đồng ý offer','ngày offer'],
+  offerCount:    ['number of offers','số lượng offer','offer count'],
+  reqId:         ['recruitment request'],
+  reqCount:      ['hiring quantity','số lượng cần tuyển','headcount'],
+  position:      ['position','tiêu đề yêu cầu tuyển dụng','job title'],
+  location:      ['working location','thành phố - nơi làm việc','nơi làm việc','location'],
+};
+const FIELD_LABELS = {
+  status:'Status',source:'Recruiting Source',
+  dept1:'Division (Level 1)',dept2:'Department (Level 2)',dept3:'Team (Level 3)',dept:'Department (fallback)',
+  level:'Level',candidateName:'Candidate Name',
+  reqDate:'Requisition Date',pauseDate:'Pause Date',reqId:'Recruitment Request (key)',
+  applyDate:'Apply Date',interviewDate:'Interview Date',
+  offerDate:'Offer Accepted Date',offerCount:'Offer Count',
+  reqCount:'Headcount Need',position:'Position',location:'Work Location',
+};
+const ACCEPTED_KW = ['accepted','đã nhận việc','hired','joined','onboard','đồng ý'];
+const REJECTED_KW = ['rejected','loại','từ chối','declined','fail'];
+const OFFERED_KW  = ['offered','đã gửi offer','đã offer'];
+const AWAITING_KW = ['awaiting','pending','chờ'];
+
+let rawData=[],colMap={},charts={};
+let activeFilters={dept:'',level:'',source:'',status:''};
+
+// File handling
+const dropZone=document.getElementById('dropZone'),fileInput=document.getElementById('fileInput');
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag');loadFile(e.dataTransfer.files[0]);});
+fileInput.addEventListener('change',e=>loadFile(e.target.files[0]));
+document.getElementById('btnLoad').addEventListener('click',buildDashboard);
+document.getElementById('btnBack').addEventListener('click',()=>{
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('uploadScreen').style.display='flex';
+  rawData=[];colMap={};fileInput.value='';
+  document.getElementById('mapHint').style.display='none';
+  document.getElementById('btnLoad').style.display='none';
+  clearTimeout(refreshTimer);
+  clearInterval(refreshCountdown);
+  isSharePointMode=false;
+  showManualUpload();
+});
+
+function loadFile(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'binary',cellDates:true});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const json=XLSX.utils.sheet_to_json(ws,{defval:''});
+      if(!json.length){showToast('File không có dữ liệu!');return;}
+      rawData=json;
+      autoMap(Object.keys(json[0]));
+      showMapHint();
+    }catch(err){showToast('Không đọc được file: '+err.message);}
+  };
+  reader.readAsBinaryString(file);
+}
+
+function autoMap(headers){
+  colMap={};
+  const headersLower=headers.map(h=>h.toLowerCase().trim());
+  Object.entries(FIELD_PATTERNS).forEach(([key,patterns])=>{
+    // 1. Try exact match first
+    let found=headers.find((_,i)=>patterns.some(p=>headersLower[i]===p.toLowerCase()));
+    // 2. Fallback: includes match (but skip if already claimed by another key)
+    if(!found){
+      found=headers.find((_,i)=>
+        patterns.some(p=>headersLower[i].includes(p.toLowerCase())) &&
+        !Object.values(colMap).includes(headers[i])
+      );
+    }
+    if(found)colMap[key]=found;
+  });
+}
+
+function showMapHint(){
+  const grid=document.getElementById('mapGrid');
+  grid.innerHTML='';
+  Object.entries(FIELD_LABELS).forEach(([key,label])=>{
+    const found=colMap[key];
+    grid.innerHTML+=`<div class="map-row2">
+      <div class="map-dot${found?'':' miss'}"></div>
+      <span class="map-field">${label}:</span>
+      <span class="map-col" title="${found||''}">${found||'—'}</span>
+    </div>`;
+  });
+  document.getElementById('mapHint').style.display='block';
+  document.getElementById('btnLoad').style.display='block';
+}
+
+// buildDashboard
+
+// dept helper: returns dept2 if available, fallback dept3, then dept
+function getDept(row, level){
+  if(level==='dept2') return colMap.dept2?String(row[colMap.dept2]||'').trim():'';
+  if(level==='dept3') return colMap.dept3?String(row[colMap.dept3]||'').trim():'';
+  if(level==='dept1') return colMap.dept1?String(row[colMap.dept1]||'').trim():'';
+  // default: prefer dept2
+  if(colMap.dept2) return String(row[colMap.dept2]||'').trim();
+  if(colMap.dept3) return String(row[colMap.dept3]||'').trim();
+  return colMap.dept?String(row[colMap.dept]||'').trim():'';
+}
+
+function get(row,key){
+  if(key==='dept') return getDept(row,'default');
+  if(!colMap[key])return '';
+  return String(row[colMap[key]]??'').trim();
+}
+
+function getDate(row,key){
+  if(!colMap[key])return null;
+  const v=row[colMap[key]];
+  if(!v)return null;
+  if(v instanceof Date)return isNaN(v)?null:v;
+  let s=String(v).trim();
+  // Interview range format: "02/04/2026 14:40 - 15:20" → take first part
+  if(s.includes(' - ')) s=s.split(' - ')[0].trim();
+  const m=s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if(m){const d=new Date(+m[3],+m[2]-1,+m[1]);return isNaN(d)?null:d;}
+  const d2=new Date(s);return isNaN(d2)?null:d2;
+}
+
+function classify(status){
+  if(!status)return 'Unknown';
+  const s=status.toLowerCase();
+  if(ACCEPTED_KW.some(k=>s.includes(k)))return 'Accepted';
+  if(REJECTED_KW.some(k=>s.includes(k)))return 'Rejected';
+  if(AWAITING_KW.some(k=>s.includes(k)))return 'Awaiting';
+  if(OFFERED_KW.some(k=>s.includes(k)))return 'Offered';
+  return status;
+}
+
+function count(arr){return arr.reduce((a,v)=>{a[v]=(a[v]||0)+1;return a;},{});}
+function topN(obj,n){return Object.entries(obj).sort((a,b)=>b[1]-a[1]).slice(0,n);}
+function avg(arr){return arr.length?arr.reduce((s,v)=>s+v,0)/arr.length:null;}
+function daysBetween(a,b){if(!a||!b||b<=a)return null;return(b-a)/86400000;}
+function slaColor(d){if(d===null)return '#505a6b';if(d<=7)return '#34c78a';if(d<=21)return '#f5a623';return '#f05a5a';}
+
+// Filters
+function filteredData(){
+  return rawData.filter(row=>{
+    if(activeFilters.dept&&getDept(row,'default')!==activeFilters.dept)return false;
+    if(activeFilters.level&&get(row,'level')!==activeFilters.level)return false;
+    if(activeFilters.source&&get(row,'source')!==activeFilters.source)return false;
+    if(activeFilters.status&&classify(get(row,'status'))!==activeFilters.status)return false;
+    return true;
+  });
+}
+
+function buildDashboard(){
+  document.getElementById('uploadScreen').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+
+  // Dept filter: use dept2 values (primary), fallback dept
+  const deptVals=[...new Set(rawData.map(r=>getDept(r,'default')).filter(Boolean))].sort();
+  const fDept=document.getElementById('fDept');
+  fDept.innerHTML='<option value="">All Departments</option>'+deptVals.map(v=>`<option value="${v}">${v}</option>`).join('');
+
+  populateFilter('fLevel','level','All Levels');
+  populateFilter('fSource','source','All Sources');
+
+  const statuses=[...new Set(rawData.map(r=>classify(get(r,'status'))))].filter(s=>s!=='Unknown');
+  const fStatus=document.getElementById('fStatus');
+  fStatus.innerHTML='<option value="">All Statuses</option>'+statuses.map(s=>`<option value="${s}">${s}</option>`).join('');
+
+  ['fDept','fLevel','fSource','fStatus'].forEach(id=>{
+    document.getElementById(id).onchange=function(){
+      const map={fDept:'dept',fLevel:'level',fSource:'source',fStatus:'status'};
+      activeFilters[map[id]]=this.value;renderAll();
+    };
+  });
+  document.getElementById('btnReset').onclick=()=>{
+    activeFilters={dept:'',level:'',source:'',status:''};
+    ['fDept','fLevel','fSource','fStatus'].forEach(id=>document.getElementById(id).value='');
+    renderAll();
+  };
+  renderAll();
+}
+
+function populateFilter(id,key,placeholder){
+  const vals=[...new Set(rawData.map(r=>get(r,key)).filter(Boolean))].sort();
+  const el=document.getElementById(id);
+  el.innerHTML=`<option value="">${placeholder}</option>`+vals.map(v=>`<option value="${v}">${v}</option>`).join('');
+}
+
+function renderAll(){
+  const data=filteredData();
+  const deptLabel=colMap.dept2?'Dept L2':colMap.dept3?'Dept L3':'Dept';
+  document.getElementById('dataInfo').textContent=`${data.length.toLocaleString()} records · ${deptLabel} filter active`;
+  renderKPIs(data);
+  renderTrendReq(data);
+  renderTrendOffer(data);
+  renderHeadcount(data);
+  renderReqTable(data);
+  renderSourceTable(data);
+  renderSLATables(data);
+}
+
+// ── REQUISITION STATUS TABLE ──────────────────────────────────────────────────
+let activeReqFilter='all';
+
+function setReqFilter(el,val){
+  document.querySelectorAll('[onclick^="setReqFilter"]').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  activeReqFilter=val;
+  renderReqTable(filteredData());
+}
+
+function renderReqTable(data){
+  // Group by Recruitment Request + Position (one req can have multiple positions)
+  const reqCol = colMap.reqId || null;
+  const getReqKey = r => {
+    const req = reqCol ? String(r[reqCol]||'').trim() : '';
+    const pos = get(r,'position')||'?';
+    return req ? `${req}|||${pos}` : `${pos}|||${reqMonthKey(r)||'—'}`;
+  };
+
+  const groups={};
+  rawData.forEach(r=>{
+    const key=getReqKey(r); if(!key)return;
+    if(!groups[key]){
+      const d=getDate(r,'reqDate');
+      const month=d?(String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear()):'—';
+      groups[key]={
+        key,
+        pos:   get(r,'position')||'—',
+        month,
+        level: get(r,'level')||'—',
+        d2:    getDept(r,'dept2'),
+        d3:    getDept(r,'dept3'),
+        dept:  getDept(r,'default'),
+        need:  0,
+        isPending: false,
+        accepted:0,
+        totalApps:0,
+      };
+    }
+    // Sum hiring quantity across all rows of this req
+    if(colMap.reqCount){
+      const v=parseFloat(r[colMap.reqCount]);
+      if(!isNaN(v)&&v>0&&groups[key].need===0) groups[key].need=v; // take first non-zero per req
+    }
+    if(colMap.pauseDate&&r[colMap.pauseDate]&&String(r[colMap.pauseDate]).trim()!=='')
+      groups[key].isPending=true;
+  });
+
+  // Count accepted & total from filteredData
+  data.forEach(r=>{
+    const key=getReqKey(r); if(!key||!groups[key])return;
+    groups[key].totalApps++;
+    if(classify(get(r,'status'))==='Accepted')groups[key].accepted++;
+  });
+
+  let entries=Object.values(groups)
+    .filter(g=>g.totalApps>0||g.accepted>0)
+    .map(g=>({...g,status:getReqStatus(g)}));
+
+  const statusOrder={Processing:0,Pending:1,Closed:2};
+  entries.sort((a,b)=>{
+    const ma=a.month==='—'?'':a.month.split('/').reverse().join('');
+    const mb=b.month==='—'?'':b.month.split('/').reverse().join('');
+    if(mb!==ma)return mb.localeCompare(ma);
+    if(statusOrder[a.status]!==statusOrder[b.status])return statusOrder[a.status]-statusOrder[b.status];
+    return a.pos.localeCompare(b.pos);
+  });
+
+  if(activeReqFilter!=='all')entries=entries.filter(e=>e.status===activeReqFilter);
+
+  const tbody=document.getElementById('reqTableBody');
+  tbody.innerHTML='';
+  if(!entries.length){
+    tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:20px">No data available</td></tr>';
+    return;
+  }
+
+  const STATUS_CFG={
+    Closed:    {color:'#34c78a',bg:'rgba(52,199,138,0.12)',icon:'🟢'},
+    Processing:{color:'#4f8ef7',bg:'rgba(79,142,247,0.12)',icon:'🔵'},
+    Pending:   {color:'#f5a623',bg:'rgba(245,166,35,0.12)', icon:'🟡'},
+  };
+
+  entries.forEach(e=>{
+    const cfg=STATUS_CFG[e.status]||{color:'#8a95a8',bg:'rgba(138,149,168,0.1)',icon:'⚪'};
+    const tierCfg=levelTier(e.level)==='senior'?'pill-amber':'pill-blue';
+    const deptDisplay=e.d2&&e.d3&&e.d2!==e.d3
+      ?`<span style="color:var(--text)">${e.d2}</span><span style="color:var(--text3)"> › ${e.d3}</span>`
+      :`<span style="color:var(--text)">${e.d2||e.dept}</span>`;
+    let progressHtml='';
+    if(e.need){
+      const pct=Math.min(e.accepted/e.need*100,100);
+      progressHtml=`<div style="display:flex;align-items:center;gap:6px">
+        <span style="font-family:var(--mono);font-size:11px;color:${e.accepted>0?'#34c78a':'var(--text)'}">${e.accepted}</span>
+        <span style="font-size:10px;color:var(--text3)">/ ${e.need}</span>
+        <div class="sla-bar-bg" style="min-width:40px"><div class="sla-bar-fill" style="width:${pct.toFixed(0)}%;background:#34c78a"></div></div>
+      </div>`;
+    }else{
+      progressHtml=`<span style="font-family:var(--mono);font-size:11px;color:${e.accepted>0?'#34c78a':'var(--text)'}">${e.accepted}</span>`;
+    }
+    tbody.innerHTML+=`<tr>
+      <td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500" title="${e.pos}">${e.pos}</td>
+      <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">${e.month}</td>
+      <td style="font-size:11px">${deptDisplay}</td>
+      <td><span class="pill ${tierCfg}">${e.level}</span></td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--text2)">${e.need||'—'}</td>
+      <td>${progressHtml}</td>
+      <td style="font-family:var(--mono);font-size:11px">${e.totalApps}</td>
+      <td><span style="display:inline-flex;align-items:center;gap:5px;background:${cfg.bg};color:${cfg.color};border-radius:20px;padding:2px 9px;font-size:10px;font-weight:500;white-space:nowrap">${cfg.icon} ${e.status}</span></td>
+    </tr>`;
+  });
+
+  const sumNeed    =entries.reduce((s,e)=>s+e.need,0);
+  const sumAccepted=entries.reduce((s,e)=>s+e.accepted,0);
+  const sumApps    =entries.reduce((s,e)=>s+e.totalApps,0);
+  const hasNeed    =entries.some(e=>e.need>0);
+  tbody.innerHTML+=`<tr style="border-top:1.5px solid var(--border2);background:rgba(255,255,255,0.03)">
+    <td style="font-weight:600;color:var(--text2);font-size:11px">Total</td>
+    <td></td><td></td><td></td>
+    <td style="font-family:var(--mono);font-weight:600;color:var(--text)">${hasNeed?sumNeed:'—'}</td>
+    <td style="font-family:var(--mono);font-weight:600;color:#34c78a">${sumAccepted}</td>
+    <td style="font-family:var(--mono);font-weight:600;color:var(--text)">${sumApps}</td>
+    <td></td>
+  </tr>`;
+}
+
+// getReqStatus for a group object
+function getReqStatus(g){
+  if(g.accepted>0)return 'Closed';
+  if(g.isPending)return 'Pending';
+  return 'Processing';
+}
+
+
+// Helper: count offers for a single row — returns 0 if NaN
+function rowOfferCount(r){
+  if(colMap.offerCount){
+    const v=parseFloat(r[colMap.offerCount]);
+    return isNaN(v)?0:v;
+  }
+  // fallback: 1 if status is Offered or Accepted
+  const cls=classify(get(r,'status'));
+  return (cls==='Offered'||cls==='Accepted')?1:0;
+}
+
+function renderKPIs(data){
+  const total=data.length;
+  const accepted=data.filter(r=>classify(get(r,'status'))==='Accepted').length;
+  const totalOffers=data.reduce((sum,r)=>sum+rowOfferCount(r),0);
+  const acceptRate=totalOffers>0?Math.round(accepted/totalOffers*100):0;
+
+  // SLA: split by tier
+  const slaStaff=[], slaMgmt=[];
+  data.forEach(r=>{
+    if(classify(get(r,'status'))!=='Accepted')return;
+    const start=getDate(r,'reqDate')||getDate(r,'applyDate');
+    const d=daysBetween(start,getDate(r,'offerDate'));
+    if(d===null||d<0)return;
+    if(levelTier(get(r,'level'))==='senior') slaMgmt.push(d);
+    else slaStaff.push(d);
+  });
+  const avgSLAStaff=avg(slaStaff);
+  const avgSLAMgmt =avg(slaMgmt);
+
+  const sources=[...new Set(data.map(r=>get(r,'source')).filter(Boolean))];
+
+  document.getElementById('kpiGrid').innerHTML=[
+    {label:'Total Offers Sent',           val:Math.round(totalOffers).toLocaleString(), sub:colMap.offerCount?'from offer count column':'counted from status', color:'var(--teal)'},
+    {label:'Offer Accept Rate',           val:acceptRate+'%',                           sub:'accepted / total offers',  color:'var(--green)'},
+    {label:'Avg SLA — Staff (Req→Accept)',val:avgSLAStaff!==null?Math.round(avgSLAStaff)+'d':'—', sub:`${slaStaff.length} accepted · ≤30d on track`, color:'var(--amber)'},
+    {label:'Avg SLA — Mgmt (Req→Accept)', val:avgSLAMgmt!==null?Math.round(avgSLAMgmt)+'d':'—',  sub:`${slaMgmt.length} accepted · ≤60d on track`,  color:'#e879a0'},
+    {label:'Recruiting Sources',          val:sources.length,                           sub:'application channels',     color:'var(--red)'},
+  ].map(k=>`<div class="kpi-card" style="--accent-color:${k.color}">
+    <div class="kpi-label">${k.label}</div>
+    <div class="kpi-val">${k.val}</div>
+    <div class="kpi-sub">${k.sub}</div>
+  </div>`).join('');
+}
+
+function mkChart(id,config){
+  const ctx=document.getElementById(id);
+  if(charts[id])charts[id].destroy();
+  charts[id]=new Chart(ctx,config);
+}
+
+const tc=(color,alpha)=>color+''+Math.round(alpha*255).toString(16).padStart(2,'0');
+const GC={x:{ticks:{color:'#8a95a8',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#8a95a8',font:{size:10}},grid:{color:'rgba(255,255,255,0.04)'}}};
+
+// Helper to build month-keyed counts from a date field
+function countByMonth(data, dateKey){
+  const byMonth={};
+  // Use unique req keys for req chart to avoid double-counting same req
+  data.forEach(r=>{
+    const d=getDate(r,dateKey);
+    if(!d)return;
+    const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    byMonth[k]=(byMonth[k]||0)+1;
+  });
+  return byMonth;
+}
+
+function renderTrendReq(data){
+  // Count unique recruitment requests by their created date
+  const seen=new Set();
+  const byMonth={};
+  data.forEach(r=>{
+    const key=colMap.reqId?String(r[colMap.reqId]||'').trim()+'|||'+(get(r,'position')||''):'';
+    if(key&&seen.has(key))return;
+    if(key)seen.add(key);
+    const d=getDate(r,'reqDate');
+    if(!d)return;
+    const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    byMonth[k]=(byMonth[k]||0)+1;
+  });
+  const keys=Object.keys(byMonth).sort();
+  const ctx=document.getElementById('trendReqChart');
+  if(!keys.length){if(charts.trendReq)charts.trendReq.destroy();ctx.parentElement.innerHTML='<div class="empty">No requisition date data</div>';return;}
+  if(charts.trendReq)charts.trendReq.destroy();
+  charts.trendReq=new Chart(ctx,{type:'bar',data:{labels:keys,datasets:[{data:keys.map(k=>byMonth[k]),backgroundColor:'rgba(79,142,247,0.7)',borderRadius:3,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{...GC.x,ticks:{...GC.x.ticks,maxTicksLimit:8,maxRotation:30}},y:{...GC.y,ticks:{...GC.y.ticks,precision:0,stepSize:1}}}}});
+}
+
+function renderTrendOffer(data){
+  const byMonth={};
+  data.forEach(r=>{
+    if(classify(get(r,'status'))!=='Accepted')return;
+    const d=getDate(r,'offerDate');
+    if(!d)return;
+    const k=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+    byMonth[k]=(byMonth[k]||0)+1;
+  });
+  const keys=Object.keys(byMonth).sort();
+  const ctx=document.getElementById('trendOfferChart');
+  if(!keys.length){if(charts.trendOffer)charts.trendOffer.destroy();ctx.parentElement.innerHTML='<div class="empty">No offer acceptance date data</div>';return;}
+  if(charts.trendOffer)charts.trendOffer.destroy();
+  charts.trendOffer=new Chart(ctx,{type:'bar',data:{labels:keys,datasets:[{data:keys.map(k=>byMonth[k]),backgroundColor:'rgba(52,199,138,0.7)',borderRadius:3,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{...GC.x,ticks:{...GC.x.ticks,maxTicksLimit:8,maxRotation:30}},y:{...GC.y,ticks:{...GC.y.ticks,precision:0,stepSize:1}}}}});
+}
+
+function renderDept(data){
+  const depts=count(data.map(r=>get(r,'dept')).filter(Boolean));
+  const top=topN(depts,10);
+  const ctx=document.getElementById('deptChart');
+  if(!top.length){if(charts.dept)charts.dept.destroy();ctx.parentElement.innerHTML='<div class="empty">No department data available</div>';return;}
+  mkChart('deptChart',{type:'bar',data:{labels:top.map(e=>e[0]),datasets:[{data:top.map(e=>e[1]),backgroundColor:'#4f8ef7',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:GC.x,y:GC.y}}});
+}
+
+function renderSourceTable(data){
+  const srcData={};
+  let totalAccepted=0;
+  data.forEach(row=>{
+    const src=get(row,'source')||'Unknown';
+    const cls=classify(get(row,'status'));
+    if(!srcData[src])srcData[src]={total:0,offers:0,accepted:0};
+    srcData[src].total++;
+    srcData[src].offers+=rowOfferCount(row);
+    if(cls==='Accepted'){srcData[src].accepted++;totalAccepted++;}
+  });
+
+  const rows=Object.entries(srcData).sort((a,b)=>b[1].total-a[1].total);
+  const tbody=document.querySelector('#srcTable tbody');
+
+  // Update header to reflect new metric
+  document.querySelector('#srcTable thead tr').innerHTML=
+    '<th>Source</th><th>Total Apps</th><th>Offers</th><th>Accepted</th><th>% of Total Accepts</th>';
+
+  tbody.innerHTML='';
+  const maxAccepted=Math.max(...rows.map(([,v])=>v.accepted));
+  rows.forEach(([src,v])=>{
+    // % accept của nguồn này trên tổng số accept toàn bộ
+    const pctOfTotal=totalAccepted>0?(v.accepted/totalAccepted*100).toFixed(1):0;
+    const barPct=maxAccepted>0?(v.accepted/maxAccepted*100):0;
+    const pill=v.accepted>=2?'pill-green':v.accepted>=1?'pill-amber':'pill-red';
+    tbody.innerHTML+=`<tr>
+      <td>${src}</td>
+      <td style="font-family:var(--mono)">${v.total}</td>
+      <td style="font-family:var(--mono)">${Math.round(v.offers)}</td>
+      <td style="font-family:var(--mono)">${v.accepted}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:7px">
+          <div class="sla-bar-bg" style="min-width:50px"><div class="sla-bar-fill" style="width:${barPct.toFixed(0)}%;background:#34c78a"></div></div>
+          <span class="pill ${pill}">${pctOfTotal}%</span>
+        </div>
+      </td>
+    </tr>`;
+  });
+  // Footer tổng
+  tbody.innerHTML+=`<tr style="border-top:1px solid var(--border2)">
+    <td style="color:var(--text2);font-size:11px">Total</td>
+    <td style="font-family:var(--mono);color:var(--text2)">${data.length}</td>
+    <td></td>
+    <td style="font-family:var(--mono);color:var(--green);font-weight:600">${totalAccepted}</td>
+    <td style="font-size:10px;color:var(--text3)">100%</td>
+  </tr>`;
+}
+
+function renderLevel(data){
+  const lvls=count(data.map(r=>get(r,'level')).filter(Boolean));
+  const entries=Object.entries(lvls).sort((a,b)=>b[1]-a[1]);
+  const ctx=document.getElementById('levelChart');
+  if(!entries.length){if(charts.level)charts.level.destroy();ctx.parentElement.innerHTML='<div class="empty">No level data available</div>';return;}
+  mkChart('levelChart',{type:'bar',data:{labels:entries.map(e=>e[0]),datasets:[{data:entries.map(e=>e[1]),backgroundColor:['#4f8ef7','#7c5cfc','#34c78a','#f5a623','#f05a5a'],borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{...GC.x,ticks:{...GC.x.ticks,maxRotation:15}},y:GC.y}}});
+}
+
+// ── SLA PIPELINE ─────────────────────────────────────────────────────────────
+// active step cho bảng chi tiết
+let activeSLAStep='total';
+let activeSLAStepStaff='total';
+
+function setSLAStep(el, step){
+  el.closest('.chart-card').querySelectorAll('.sla-tab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  activeSLAStep=step;
+  renderSLATables(filteredData());
+}
+
+function setSLAStepStaff(el, step){
+  el.closest('.chart-card').querySelectorAll('.sla-tab').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  activeSLAStepStaff=step;
+  renderSLATables(filteredData());
+}
+
+// Phân loại cấp độ thành 2 nhóm SLA threshold
+function levelTier(levelStr){
+  const s=(levelStr||'').toLowerCase();
+  // Management tier: manager, management, lead, trưởng, phó, senior, head
+  if(s.includes('management')||s.includes('manager')||s.includes('trưởng')||
+     s.includes('phó')||s.includes('lead')||s.includes('senior')||s.includes('head'))return 'senior';
+  return 'junior'; // Staff, specialist, junior, etc.
+}
+
+function slaColorByLevel(days, tier){
+  if(days===null||days<0)return '#505a6b';
+  if(tier==='senior'){
+    return days<=60?'#34c78a':days<=75?'#f5a623':'#f05a5a';
+  }
+  return days<=30?'#34c78a':days<=45?'#f5a623':'#f05a5a';
+}
+
+function slaLabelByLevel(days, tier){
+  if(days===null||days<0)return '—';
+  if(tier==='senior'){
+    return days<=60?'🟢 On Track':days<=75?'🟡 At Risk':'🔴 Overdue';
+  }
+  return days<=30?'🟢 On Track':days<=45?'🟡 At Risk':'🔴 Overdue';
+}
+
+// Tính SLA cho 1 row theo step
+function getSLADays(row, step){
+  const req   = getDate(row,'reqDate');
+  const apply = getDate(row,'applyDate');
+  const iv    = getDate(row,'interviewDate');
+  const offer = getDate(row,'offerDate');
+  if(step==='total')         return daysBetween(req||apply, offer);
+  if(step==='req2apply')     return daysBetween(req, apply);
+  if(step==='apply2interview')return daysBetween(apply, iv);
+  if(step==='interview2offer')return daysBetween(iv, offer);
+  return null;
+}
+
+const STEP_LABELS={
+  total:          'YC tuyển dụng → Offer',
+  req2apply:      'YC tuyển dụng → Ứng tuyển',
+  apply2interview:'Ứng tuyển → Phỏng vấn',
+  interview2offer:'Phỏng vấn → Offer',
+};
+
+// Threshold chú thích cho từng step (chỉ áp rule level khi step=total)
+function stepNote(step, tier){
+  if(step==='total'){
+    if(tier==='senior') return 'Management: 🟢≤60d · 🟡61–75d · 🔴>75d';
+    return 'Staff: 🟢≤30d · 🟡31–45d · 🔴>45d';
+  }
+  return '🟢 Fast &nbsp;·&nbsp; 🟡 Average &nbsp;·&nbsp; 🔴 Slow (relative to other positions)';
+}
+
+// ── SLA TABLES (split by tier) ────────────────────────────────────────────────
+function renderSLATables(data){
+  renderSLATableForTier(data, 'senior', 'slaTableMgmt', activeSLAStep);
+  renderSLATableForTier(data, 'junior', 'slaTableStaff', activeSLAStepStaff);
+}
+
+function renderSLATableForTier(data, tier, tableId, step){
+  const rows=[];
+  data.forEach(r=>{
+    if(classify(get(r,'status'))!=='Accepted')return;
+    if(levelTier(get(r,'level'))!==tier)return;
+    const d=getSLADays(r,step);
+    if(d===null||d<0)return;
+    rows.push({
+      pos  :get(r,'position')||'(Unknown)',
+      level:get(r,'level')||'—',
+      dept :getDept(r,'default')||'—',
+      name :get(r,'candidateName')||'—',
+      days :d,
+      tier,
+    });
+  });
+  rows.sort((a,b)=>b.days-a.days);
+
+  const tbody=document.querySelector(`#${tableId} tbody`);
+  document.querySelector(`#${tableId} thead tr`).innerHTML=
+    '<th>Position</th><th>Level</th><th>Department</th><th>Candidate (Accepted)</th><th>SLA (days)</th><th>Rating</th>';
+  tbody.innerHTML='';
+
+  if(!rows.length){
+    const msg=step==='apply2interview'&&!colMap.interviewDate
+      ?'Add "Interview Date" column to Excel'
+      :step==='req2apply'&&!colMap.reqDate
+      ?'Requisition Date column required'
+      :`No accepted ${tier==='senior'?'Management':'Staff'} candidates with SLA data`;
+    tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:14px">${msg}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML=`<tr style="background:rgba(255,255,255,0.015)">
+    <td colspan="6" style="padding:5px 7px;font-size:10px;color:var(--text3)">${stepNote(step,tier)}</td>
+  </tr>`;
+
+  const maxDays=Math.max(...rows.map(r=>r.days));
+  rows.forEach(r=>{
+    const pct=maxDays?(r.days/maxDays*100):0;
+    let color,label;
+    if(step==='total'){
+      color=slaColorByLevel(r.days,r.tier);
+      label=slaLabelByLevel(r.days,r.tier);
+    } else {
+      const ratio=r.days/maxDays;
+      color=ratio<=0.33?'#34c78a':ratio<=0.66?'#f5a623':'#f05a5a';
+      label=ratio<=0.33?'🟢 Fast':ratio<=0.66?'🟡 Avg':'🔴 Slow';
+    }
+    const levelBadge=tier==='senior'
+      ?`<span class="pill pill-amber">${r.level}</span>`
+      :`<span class="pill pill-blue">${r.level}</span>`;
+    tbody.innerHTML+=`<tr>
+      <td style="max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.pos}">${r.pos}</td>
+      <td>${levelBadge}</td>
+      <td style="font-size:11px;color:var(--text2)">${r.dept}</td>
+      <td><span style="display:inline-flex;align-items:center;gap:5px">
+        <span style="width:6px;height:6px;border-radius:50%;background:#34c78a;flex-shrink:0;display:inline-block"></span>
+        <span style="font-size:11px;color:#34c78a">${r.name}</span>
+      </span></td>
+      <td><div class="sla-bar-wrap">
+        <div class="sla-bar-bg"><div class="sla-bar-fill" style="width:${pct.toFixed(0)}%;background:${color}"></div></div>
+        <span class="sla-days" style="color:${color}">${Math.round(r.days)}d</span>
+      </div></td>
+      <td style="font-size:10px;color:${color};white-space:nowrap">${label}</td>
+    </tr>`;
+  });
+}
+
+function renderSLAByDept(data){
+  // Chỉ tính SLA cho ứng viên đã Accept
+  const acceptedData=data.filter(r=>classify(get(r,'status'))==='Accepted');
+
+  const steps=['req2apply','apply2interview','interview2offer','total'];
+  const stepColors={'req2apply':'#4f8ef7','apply2interview':'#7c5cfc','interview2offer':'#f5a623','total':'#34c78a'};
+  const stepShort={'req2apply':'Req→Apply','apply2interview':'Apply→IV','interview2offer':'IV→Offer','total':'Total'};
+
+  const depts=[...new Set(acceptedData.map(r=>get(r,'dept')).filter(Boolean))];
+  if(!depts.length){
+    const ctx=document.getElementById('slaDeptChart');
+    if(charts.slaDept)charts.slaDept.destroy();
+    ctx.parentElement.innerHTML='<div class="empty">No accepted candidates to calculate SLA</div>';
+    return;
+  }
+
+  const datasets=steps.map(step=>{
+    const vals=depts.map(dept=>{
+      const rows=acceptedData.filter(r=>get(r,'dept')===dept);
+      const ds=rows.map(r=>getSLADays(r,step)).filter(d=>d!==null&&d>=0);
+      return ds.length?Math.round(avg(ds)):null;
+    });
+    return {label:stepShort[step],data:vals,backgroundColor:stepColors[step],borderRadius:3,borderSkipped:false};
+  });
+
+  const ctx=document.getElementById('slaDeptChart');
+  if(charts.slaDept)charts.slaDept.destroy();
+  charts.slaDept=new Chart(ctx,{
+    type:'bar',
+    data:{labels:depts,datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:true,position:'top',labels:{color:'#8a95a8',font:{size:10},boxWidth:10,padding:10}},
+        tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.raw}d`}}
+      },
+      scales:{
+        x:{...GC.x,ticks:{...GC.x.ticks,maxRotation:15}},
+        y:{...GC.y,ticks:{...GC.y.ticks,callback:v=>v+'d'}},
+      }
+    }
+  });
+}
+
+function renderLocation(data){
+  const locs=count(data.map(r=>get(r,'location')).filter(Boolean));
+  const top=topN(locs,12);
+  const grid=document.getElementById('locGrid');
+  if(!top.length){grid.innerHTML='<div class="empty">No data available nơi làm việc</div>';return;}
+  const max=top[0][1];
+  grid.innerHTML=top.map(([loc,n])=>{
+    const op=0.25+0.75*(n/max);
+    return `<div class="loc-item" style="background:rgba(79,142,247,${(op*0.12).toFixed(2)});border:1px solid rgba(79,142,247,${(op*0.28).toFixed(2)})"><span class="loc-count">${n}</span><span style="font-size:11px;color:var(--text2)">${loc}</span></div>`;
+  }).join('');
+}
+
+function renderPosition(data){
+  const pos=count(data.map(r=>get(r,'position')).filter(Boolean));
+  const top=topN(pos,10);
+  const ctx=document.getElementById('posChart');
+  if(!top.length){if(charts.pos)charts.pos.destroy();ctx.parentElement.innerHTML='<div class="empty">No data available vị trí</div>';return;}
+  const h=Math.max(top.length*26+50,200);
+  ctx.parentElement.style.height=h+'px';
+  mkChart('posChart',{type:'bar',data:{labels:top.map(e=>e[0].length>24?e[0].slice(0,24)+'…':e[0]),datasets:[{data:top.map(e=>e[1]),backgroundColor:'#7c5cfc',borderRadius:3}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{...GC.x},x:{...GC.y}}}});
+}
+
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',3500);}
+
+// ── DROPOUT RATE ──────────────────────────────────────────────────────────────
+function renderDropout(data){
+  const total = data.length;
+  const wrap  = document.getElementById('dropoutWrap');
+  if(!total){ wrap.innerHTML='<div class="empty">No data available</div>'; return; }
+
+  // Bước Interviewed: có interviewDate, hoặc đã qua offer/accepted
+  const hadInterview = data.filter(r=>{
+    if(getDate(r,'interviewDate')) return true;
+    const cls=classify(get(r,'status'));
+    return cls==='Offered'||cls==='Accepted';
+  }).length;
+
+  const offeredCount=data.reduce((s,r)=>s+rowOfferCount(r),0);
+  const accepted=data.filter(r=>classify(get(r,'status'))==='Accepted').length;
+
+  const steps=[
+    {label:'Applied',    val:total,                   color:'#4f8ef7'},
+    {label:'Interviewed',val:hadInterview,             color:'#7c5cfc'},
+    {label:'Offered',    val:Math.round(offeredCount), color:'#f5a623'},
+    {label:'Accepted',   val:accepted,                 color:'#34c78a'},
+  ];
+
+  let html='<div style="display:flex;flex-direction:column;gap:4px;">';
+  steps.forEach((s,i)=>{
+    const barPct=total?(s.val/total*100):0;
+    html+=`<div style="display:flex;align-items:center;gap:10px">
+      <div style="width:90px;font-size:11px;color:var(--text2);text-align:right;flex-shrink:0">${s.label}</div>
+      <div style="flex:1;background:var(--bg3);border-radius:4px;height:22px;overflow:hidden">
+        <div style="width:${Math.max(barPct,1).toFixed(1)}%;height:100%;background:${s.color};border-radius:4px;display:flex;align-items:center;padding-left:8px">
+          <span style="font-size:10px;font-weight:500;color:rgba(255,255,255,0.9);font-family:var(--mono);white-space:nowrap">${s.val.toLocaleString()}</span>
+        </div>
+      </div>
+      <div style="width:38px;font-size:10px;font-family:var(--mono);color:var(--text);text-align:right;flex-shrink:0">${barPct.toFixed(1)}%</div>
+    </div>`;
+    if(i<steps.length-1){
+      const dropped=s.val-steps[i+1].val;
+      const dropPct=s.val>0?(dropped/s.val*100).toFixed(1):0;
+      const ac=dropped>s.val*0.7?'#f05a5a':dropped>s.val*0.4?'#f5a623':'#505a6b';
+      html+=`<div style="display:flex;align-items:center;gap:6px;padding-left:100px">
+        <span style="font-size:11px;color:${ac}">↓</span>
+        <span style="font-size:10px;color:${ac}">Dropped <b>${Math.max(dropped,0).toLocaleString()}</b> candidates (${dropPct}%)</span>
+      </div>`;
+    }
+  });
+  html+='</div>';
+
+  const convRate=total>0?(accepted/total*100).toFixed(1):0;
+  html+=`<div style="margin-top:14px;padding:10px 12px;background:rgba(52,199,138,0.08);border:1px solid rgba(52,199,138,0.2);border-radius:8px;display:flex;align-items:center;justify-content:space-between">
+    <span style="font-size:11px;color:var(--text2)">Overall Conversion Rate (Apply → Accept)</span>
+    <span style="font-family:var(--mono);font-size:16px;font-weight:600;color:#34c78a">${convRate}%</span>
+  </div>`;
+  wrap.innerHTML=html;
+}
+
+// ── HEADCOUNT COMPLETION ──────────────────────────────────────────────────────
+function renderHeadcount(data){
+  const getKey = r => {
+    const req = colMap.reqId ? String(r[colMap.reqId]||'').trim() : '';
+    const pos = get(r,'position')||'?';
+    return req ? `${req}|||${pos}` : pos;
+  };
+
+  // Build req-level groups
+  const reqGroups={};
+  rawData.forEach(r=>{
+    const key=getKey(r); if(!key)return;
+    if(!reqGroups[key]){
+      reqGroups[key]={
+        div1: getDept(r,'dept1')||'',
+        dept: getDept(r,'default')||'(Unknown)',
+        need:0, isPending:false, accepted:0,
+      };
+    }
+    if(colMap.reqCount&&reqGroups[key].need===0){
+      const v=parseFloat(r[colMap.reqCount]);
+      if(!isNaN(v)&&v>0)reqGroups[key].need=v;
+    }
+    if(colMap.pauseDate&&r[colMap.pauseDate]&&String(r[colMap.pauseDate]).trim()!=='')
+      reqGroups[key].isPending=true;
+  });
+
+  data.forEach(r=>{
+    const key=getKey(r);
+    if(!key||!reqGroups[key])return;
+    if(classify(get(r,'status'))==='Accepted') reqGroups[key].accepted++;
+  });
+
+  // Rollup: by "Division · Dept" label
+  const deptMap={};
+  Object.values(reqGroups).forEach(g=>{
+    // Label: "ADS · DAC" or just "DAC" if no division
+    const label=g.div1?`${g.div1} · ${g.dept}`:g.dept;
+    if(!deptMap[label])deptMap[label]={need:0,accepted:0,pendingCount:0};
+    if(g.isPending){deptMap[label].pendingCount++;return;}
+    deptMap[label].need    +=g.need;
+    deptMap[label].accepted+=g.accepted;
+  });
+
+  const depts=Object.entries(deptMap)
+    .filter(([,v])=>v.need>0||v.accepted>0)
+    .sort((a,b)=>{
+      // Sort by division first, then by dept name
+      return a[0].localeCompare(b[0]);
+    });
+
+  const pending=Object.values(reqGroups).filter(g=>g.isPending);
+  const totalNeed    =depts.reduce((s,[,v])=>s+v.need,0);
+  const totalAccepted=depts.reduce((s,[,v])=>s+v.accepted,0);
+  const totalPct     =totalNeed>0?(totalAccepted/totalNeed*100):0;
+  const sumColor     =totalPct>=100?'#34c78a':totalPct>=60?'#f5a623':'#f05a5a';
+
+  // Division-level rollup
+  const divMap={};
+  Object.values(reqGroups).forEach(g=>{
+    const div=g.div1||'(No Division)';
+    if(!divMap[div])divMap[div]={need:0,accepted:0};
+    if(g.isPending)return;
+    divMap[div].need    +=g.need;
+    divMap[div].accepted+=g.accepted;
+  });
+  const divSummaryHtml=Object.entries(divMap)
+    .filter(([,v])=>v.need>0)
+    .sort((a,b)=>a[0].localeCompare(b[0]))
+    .map(([div,v])=>{
+      const pct=v.need>0?(v.accepted/v.need*100):0;
+      const c=pct>=100?'#34c78a':pct>=60?'#f5a623':'#f05a5a';
+      return `<div style="display:flex;align-items:center;gap:10px;margin-bottom:5px">
+        <div style="font-size:11px;font-weight:500;color:var(--text);width:60px;flex-shrink:0">${div}</div>
+        <div style="flex:1;background:var(--bg3);border-radius:3px;height:6px;overflow:hidden">
+          <div style="width:${Math.min(pct,100).toFixed(1)}%;height:100%;background:${c};border-radius:3px"></div>
+        </div>
+        <div style="font-family:var(--mono);font-size:11px;color:${c};width:60px;text-align:right;flex-shrink:0">${v.accepted}/${v.need} · ${pct.toFixed(0)}%</div>
+      </div>`;
+    }).join('');
+
+  document.getElementById('headcountSummary').innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+      <span style="font-size:11px;color:var(--text2)">Overall (excl. Pending): <b style="color:var(--text)">${totalAccepted} / ${totalNeed}</b></span>
+      <span style="font-family:var(--mono);font-size:15px;font-weight:600;color:${sumColor}">${totalPct.toFixed(0)}%</span>
+    </div>
+    <div style="background:var(--bg3);border-radius:4px;height:7px;overflow:hidden;margin-bottom:10px">
+      <div style="width:${Math.min(totalPct,100).toFixed(1)}%;height:100%;background:${sumColor};border-radius:4px"></div>
+    </div>
+    ${divSummaryHtml}
+    <div style="font-size:10px;color:var(--text3);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">🟢 ≥100% &nbsp;·&nbsp; 🟡 ≥60% &nbsp;·&nbsp; 🔴 &lt;60%${pending.length?' &nbsp;·&nbsp; ⏸ Pending excluded':''}</div>`;
+
+  document.getElementById('headcountPending').innerHTML=pending.length
+    ?`<div style="font-size:10px;color:#f5a623;margin-top:4px">⏸ ${pending.length} position(s) on hold — excluded from calculation</div>`:'';
+
+  if(!depts.length){
+    document.getElementById('headcountChart').parentElement.innerHTML='<div class="empty">No headcount data available</div>';
+    return;
+  }
+
+  const labels   =depts.map(([d])=>d);
+  const needVals =depts.map(([,v])=>v.need);
+  const accVals  =depts.map(([,v])=>v.accepted);
+  const pcts     =depts.map(([,v])=>v.need>0?(v.accepted/v.need*100):0);
+  const barColors=pcts.map(p=>p>=100?'#34c78a':p>=60?'#f5a623':'#f05a5a');
+
+  // Dynamic height based on number of depts
+  const chartH=Math.max(depts.length*38+50,180);
+  document.getElementById('headcountChart').parentElement.style.height=chartH+'px';
+
+  const ctx=document.getElementById('headcountChart');
+  if(charts.headcount)charts.headcount.destroy();
+  charts.headcount=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets:[{label:'Accepted / Need',data:accVals,backgroundColor:barColors,borderRadius:4,borderSkipped:false}]},
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>{const[,v]=depts[c.dataIndex];const pct=v.need>0?(v.accepted/v.need*100).toFixed(0):0;return` Accepted: ${v.accepted} / ${v.need} (${pct}%)`;}}}
+      },
+      scales:{
+        y:{ticks:{color:'#8a95a8',font:{size:11}},grid:{display:false}},
+        x:{ticks:{color:'#8a95a8',font:{size:10},stepSize:1,precision:0},grid:{color:'rgba(255,255,255,0.04)'},beginAtZero:true,max:Math.max(...needVals,1)+0.5},
+      }
+    },
+    plugins:[{
+      id:'pctLabel',
+      afterDatasetsDraw(chart){
+        const{ctx:c2}=chart;
+        chart.getDatasetMeta(0).data.forEach((bar,i)=>{
+          const[,v]=depts[i];
+          const pct=v.need>0?(v.accepted/v.need*100).toFixed(0):0;
+          c2.save();
+          c2.font='600 10px DM Mono,monospace';
+          c2.fillStyle=barColors[i];
+          c2.textAlign='left';c2.textBaseline='middle';
+          c2.fillText(`${v.accepted}/${v.need} · ${pct}%`,bar.x+6,bar.y);
+          if(v.need>0){
+            const nx=chart.scales.x.getPixelForValue(v.need);
+            c2.strokeStyle='rgba(255,255,255,0.25)';c2.lineWidth=1.5;c2.setLineDash([3,3]);
+            c2.beginPath();c2.moveTo(nx,bar.y-8);c2.lineTo(nx,bar.y+8);c2.stroke();c2.setLineDash([]);
+          }
+          c2.restore();
+        });
+      }
+    }]
+  });
+}
+</script>
+</body>
+</html>
